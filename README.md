@@ -14,7 +14,7 @@ In the following you can find how to easily get your relation embeddings given a
 
 ### Dataset and Models
 
-You can download teh dataset and models from the followlig *[link](https://drive.google.com/file/d/1wphfFWUi00UK_gzllQhq88gEL8thFXqn/view?usp=sharing)*
+You can download the dataset and models from the followlig *[link](https://drive.google.com/file/d/1wphfFWUi00UK_gzllQhq88gEL8thFXqn/view?usp=sharing)*
 
 ### Run Code
 
