@@ -2,14 +2,16 @@ import sys
 
 sys.path.append("./src")
 
+import ml_metrics
 import numpy as np
 import os
 import pandas as pd
 from pytorch_transformers import BertConfig
+import sklearn
 from torch import load, no_grad
 
 from bert_en import BertForSequenceMeanVec
-from evaluation import evaluate_model_sector_prediction
+from evaluation import evaluate_model_sector_similarity
 
 """Path to the fine-tuned model on all sectors"""
 abs_model_path = "/home/jihene/Accelex_repo/Company2Vec/English/models"
@@ -22,8 +24,8 @@ max_seq_length = 512
 batch_size = 1
 
 """Path to the data files: 
-df_ticker includes: ticker / sector / industry / text description
-text_data_id_df includes: ticker / text description ids """
+df_ticker contains: ticker / sector / industry / text description
+text_data_id_df contains: ticker / text description ids """
 
 abs_data_path = "/home/jihene/Accelex_repo/Company2Vec/English/data"
 df_ticker = pd.read_csv(os.path.join(abs_data_path, "ticker_list.csv"))
@@ -90,8 +92,39 @@ model = BertForSequenceMeanVec(
 
 """making the predictions on the input test data"""
 with no_grad():
-
-    prediction = evaluate_model_sector_prediction(
-        model, test_data_x, test_data_y, test_data_industry, test_data_size
+    sentence_representation_all_test = evaluate_model_sector_similarity(
+        model, test_data_x, test_data_y, test_data_size
     )
-    print(prediction)
+
+    """getting the similarity matrix between the input text_ids considering the sector
+    """
+    doc2soc_similarity_mat = sklearn.metrics.pairwise.cosine_similarity(
+        sentence_representation_all_test
+    )
+    print("similarity matrix:")
+    print(doc2soc_similarity_mat)
+
+    """sorting the similarity matrix"""
+    sort_values = np.argsort(doc2soc_similarity_mat, axis=1)[:, -1::-1]
+
+    """getting the predicted values and the actual values"""
+    print("sector (MAP@K)")
+    predicted_list = [list(item[1:]) for item in sort_values]
+    actual_list_all = [
+        list(
+            np.array(range(len(test_data_y)))[
+                np.array(test_data_y) == test_data_y[index]
+            ]
+        )
+        for index in range(len(test_data_y))
+    ]
+    actual_list_rev = []
+    for index, item in enumerate(actual_list_all):
+        actual_list_rev.append(list(np.array(item)[np.array(item) != index]))
+
+    """computing the mean average precision at k for the predictions.
+    k is the number of elements of "predicted" to consider in the calculation
+    which is the top_n companies extracted from the sorted_values
+    """
+    for top_n in [5, 10, 50]:
+        print(top_n, ":", ml_metrics.mapk(actual_list_rev, predicted_list, top_n))
